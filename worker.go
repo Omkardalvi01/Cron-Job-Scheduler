@@ -2,11 +2,12 @@ package main
 
 import (
 	"time"
+	"fmt"
 )
 
 type Task struct {
-	content string
-	exec_time     time.Time
+	content string 
+	exec_time     time.Time 
 }
 type Result struct {
 	workerid int
@@ -24,6 +25,8 @@ func (w worker) Start() {
 		success, err := get_data(t.content)
 		if err != nil{
 			w.resultchan <- Result{workerid : w.workerid , status: success}
+			fmt.Print(err)
+			return
 		}
 		w.resultchan <- Result{workerid: w.workerid, status: success}
 	}
@@ -52,6 +55,8 @@ func (wp workerpool) Start() {
 
 func (wp workerpool)  Submit(c string, exec time.Time){
 	t := Task{content: c, exec_time: exec }
+	fmt.Println("Duration until execution:", time.Until(t.exec_time))
+
 	time.AfterFunc(time.Until(t.exec_time), func(){ wp.taskqueue <- t })
 }
 
