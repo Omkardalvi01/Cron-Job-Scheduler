@@ -6,6 +6,7 @@ import (
 )
 
 type Task struct {
+	taskid int
 	content string 
 	exec_time     time.Time 
 }
@@ -58,8 +59,4 @@ func (wp workerpool)  Submit(c string, exec time.Time){
 	fmt.Println("Duration until execution:", time.Until(t.exec_time))
 
 	time.AfterFunc(time.Until(t.exec_time), func(){ wp.taskqueue <- t })
-}
-
-func (wp workerpool) getResult() Result{
-	return <-wp.result
 }
