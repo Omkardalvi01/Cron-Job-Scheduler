@@ -1,11 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -14,7 +14,7 @@ func get_data(u string) (int , error) {
 	if err != nil{
 		return -1 , err
 	}
-	fmt.Println(resp.StatusCode)
+
 	return resp.StatusCode , nil
 }
 
@@ -27,10 +27,16 @@ func main(){
         Protocol: 2,  
     })
 
+	ctx, cancel := context.WithCancel(context.Background())
+	new_entry := make(chan struct{})
+
 	wp := Newpool(3)
 	wp.Start()
+	go wp.Submit(ctx , new_entry, client)
 
-	http.HandleFunc("/serve", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request) {
+
+		
 
 		var m map[string]interface{}
 		body , _ := io.ReadAll(r.Body)
@@ -50,12 +56,16 @@ func main(){
 			fmt.Print("Error at set_task_hset", err)
 		}
 
+		go wp.Cancel_Submit(cancel, client , delay, ctx, new_entry)
+
+
 		err = set_sorted_set(client, task_id, delay)
 		if err != nil{
-			fmt.Print("Errpr at sorted task set", err)
+			fmt.Print("Error at sorted task set", err)
 		}
-
-		wp.Submit(urlStr, time.Now().Add(time.Duration(delay) * time.Second))
+		
+		new_entry <- struct{}{}
+		
 	})
 
 	go func(){

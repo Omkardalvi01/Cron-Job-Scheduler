@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
-
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
@@ -28,24 +28,75 @@ func create_taskid(r *redis.Client) (string,  error) {
 
 func set_task_hset(r *redis.Client, taskid, url string, delay int ) error {
 	ctx  := context.Background()
-	values := []string{"taskid" , taskid , "url" , url, "delay" , strconv.Itoa(delay)}
-	err := r.HSet(ctx, "Task_HSet" , values).Err()
+	redis_key := "task:" + taskid
+
+	err := r.HSet(ctx, redis_key ,
+		"taskid" , taskid,
+		"url" , url	,
+		"delay", delay).Err()
 	if err != nil{
 		return err
 	}
+
 	return nil
 }
 
 func set_sorted_set(r *redis.Client, taskid string, delay int) error {
 	execTime := time.Now().Add(time.Duration(delay) * time.Second).Unix()
 	ctx := context.Background()
-	err := r.ZAdd(ctx, "tasks_schedulae", redis.Z{
+
+	err := r.ZAdd(ctx, "tasks_schedular", redis.Z{
 		Score: float64(execTime),
 		Member: taskid,
 	}).Err()
-
 	if err != nil{
 		return err
 	}
+
 	return nil
 } 
+
+func get_top(r *redis.Client) (Task , error) {
+	ctx := context.Background()
+	task_id, err := r.ZRange(ctx, "tasks_schedular", 0 , 0).Result()
+	if err != nil {
+		return Task{} , err
+	} 
+	if len(task_id) == 0{
+		return Task{} , redis.Nil
+	}
+	fmt.Println("Task id: ", task_id)
+
+	redis_key := "task:" + task_id[0] 
+	t , err := r.HGetAll(ctx, redis_key).Result()
+	if(err != nil){
+		return Task{} , err
+	}
+
+	t_id , t_url, t_delay := t["taskid"] , t["url"], t["delay"]
+	
+	t_delay_int , err := strconv.Atoi(t_delay)
+	if err != nil {
+		return Task{} , err
+	}
+
+	task := Task{taskid: t_id, content: t_url, exec_time: time.Now().Add(time.Duration(t_delay_int) * time.Second)}
+	return task , nil
+}
+
+func remove_from_db(r *redis.Client, t Task) error{
+	ctx := context.Background()
+	
+	redis_key := "task:" + t.taskid
+	_ , err := r.Del(ctx, redis_key).Result()
+	if err != nil {
+		return err
+	}
+
+	_ , err = r.ZRem(ctx, "tasks_schedular" , t.taskid).Result()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

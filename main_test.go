@@ -26,13 +26,30 @@ func Test_redis_integration_test(t *testing.T){
 	}
 	fmt.Println("Task_id :", str)
 
-	err = set_task_hset(client, str, "https://pinterest.com", 10)
+	url := "https://google.com/"
+	delay := 5
+
+	err = set_task_hset(client, str, url, delay)
 	if err != nil {
 		t.Errorf("Error at set task hset: %v", err)
 	}
 
-	err = set_sorted_set(client, str , 10)
+	err = set_sorted_set(client, str , 4)
 	if err != nil {
 		t.Errorf("Error at set sorted set: %v", err)
 	}
+	
+	task , err := get_top(client)
+	if err != nil {
+		t.Errorf("Error at get top: %v", err)
+	}
+	fmt.Println(task)
+
+	task = Task{taskid: str, content: url}
+	err = remove_from_db(client , task)
+	if err != nil {
+		t.Errorf("Error at get top: %v", err)
+	}
+	fmt.Println("Removed successfully")
+
 }

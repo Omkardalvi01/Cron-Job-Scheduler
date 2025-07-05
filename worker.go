@@ -1,12 +1,16 @@
 package main
 
 import (
-	"time"
+	"context"
 	"fmt"
+
+	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type Task struct {
-	taskid int
+	taskid string
 	content string 
 	exec_time     time.Time 
 }
@@ -23,6 +27,7 @@ type worker struct {
 
 func (w worker) Start() {
 	for t := range w.task {
+		fmt.Println("Worker has started working")
 		success, err := get_data(t.content)
 		if err != nil{
 			w.resultchan <- Result{workerid : w.workerid , status: success}
@@ -54,9 +59,55 @@ func (wp workerpool) Start() {
 	}
 }
 
-func (wp workerpool)  Submit(c string, exec time.Time){
-	t := Task{content: c, exec_time: exec }
-	fmt.Println("Duration until execution:", time.Until(t.exec_time))
+func (wp workerpool)  Submit(ctx context.Context , new_entry chan struct{}, r *redis.Client){
 
-	time.AfterFunc(time.Until(t.exec_time), func(){ wp.taskqueue <- t })
+	t, err := get_top(r)
+	if err == redis.Nil{
+		<-new_entry
+		go wp.Submit(ctx , new_entry, r)
+		return 
+	}
+	if err != nil{
+		fmt.Println(err)
+	}
+	
+
+	fmt.Println("Duration until execution:", time.Until(t.exec_time))
+	for {
+		select{
+		case <-ctx.Done():
+			fmt.Println("Context Cancelled")
+			return
+		default:
+			if time.Now().After(t.exec_time) {
+				wp.taskqueue <- t
+
+				err := remove_from_db(r , t)
+				if err != nil {
+					fmt.Println("Error at remove from db: ", err)
+				}
+
+				go wp.Submit(ctx , new_entry, r)
+				return
+			}
+			
+		}
+	}
+	
+}
+
+func (wp workerpool) Cancel_Submit(cancel context.CancelFunc, r *redis.Client ,delay int,
+	ctx context.Context, new_entry chan struct{}){
+	t, err := get_top(r)
+	if err != nil {
+		fmt.Print("Eror: ",err)
+	}
+	top_delay := t.exec_time
+	new_exec_time := time.Now().Add(time.Duration(delay) * time.Second)
+	if top_delay.After(new_exec_time)  {
+		fmt.Println("Task switched")
+		cancel()
+		go wp.Submit(ctx, new_entry, r)
+	}
+
 }
