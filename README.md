@@ -8,7 +8,7 @@ A lightweight, modular cron job scheduler built in Go, using Redis for persisten
 
 * ⚡ Accepts HTTP POST requests to create jobs dynamically
 * 🧠 Redis-backed storage for task metadata and sorted scheduling
-* 👷‍♂ Worker pool to handle concurrent task execution
+* 👷‍♂️ Worker pool to handle concurrent task execution
 * ⏱️ Delayed execution using Redis Sorted Sets (ZSET)
 * 🔄 Task queue that re-fetches and evaluates task timing continuously
 * 🔧 **Modular architecture** — add your own task logic (currently a simple status check)
@@ -25,7 +25,7 @@ This project is designed to be modular. You can easily plug in **custom task beh
 * It sends an HTTP GET to the submitted URL and checks the status code.
 * If the site responds (i.e., `200 OK`), the job is considered successful.
 
-### 🧹 You Can Extend It To:
+### 🧩 You Can Extend It To:
 
 * Trigger webhooks
 * Write logs to a file or external service
@@ -68,7 +68,7 @@ curl -X POST http://localhost:5000/post \
 
 ---
 
-## 🧐 How It Works
+## 🧠 How It Works
 
 1. Client sends a job with a delay and target URL.
 2. Task is stored in Redis (hash + sorted set).
@@ -118,15 +118,17 @@ curl -X POST http://localhost:5000/post \
 ## 📈 Example Output
 
 ```bash
-workerid : 2 success: true
-workerid : 1 success: true
+workerid : 2 success: 200
+workerid : 1 success: 200
 ```
 
 ---
 
 ## ✅ To Do
 
-*
+* Retry mechanism for failed tasks
+* Job deletion
+* Add repetitive tasks
 
 ---
 
