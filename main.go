@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,12 +26,12 @@ func main(){
         Protocol: 2,  
     })
 
-	ctx, cancel := context.WithCancel(context.Background())
 	new_entry := make(chan struct{})
+	cancel := make(chan struct{})
 
 	wp := Newpool(3)
 	wp.Start()
-	go wp.Submit(ctx , new_entry, client)
+	go wp.Submit(cancel , new_entry, client)
 
 	http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request) {
 
@@ -56,7 +55,7 @@ func main(){
 			fmt.Print("Error at set_task_hset", err)
 		}
 
-		go wp.Cancel_Submit(cancel, client , delay, ctx, new_entry)
+		go wp.Cancel_Submit(cancel, client , delay, new_entry)
 
 
 		err = set_sorted_set(client, task_id, delay)

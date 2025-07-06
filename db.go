@@ -27,13 +27,15 @@ func create_taskid(r *redis.Client) (string,  error) {
 }
 
 func set_task_hset(r *redis.Client, taskid, url string, delay int ) error {
+	execTime := time.Now().Add(time.Duration(delay) * time.Second).Unix()
+	
 	ctx  := context.Background()
 	redis_key := "task:" + taskid
 
 	err := r.HSet(ctx, redis_key ,
 		"taskid" , taskid,
 		"url" , url	,
-		"delay", delay).Err()
+		"delay", int64(execTime)).Err()
 	if err != nil{
 		return err
 	}
@@ -73,14 +75,15 @@ func get_top(r *redis.Client) (Task , error) {
 		return Task{} , err
 	}
 
-	t_id , t_url, t_delay := t["taskid"] , t["url"], t["delay"]
+	t_id , t_url, t_delay_str := t["taskid"] , t["url"], t["delay"]
 	
-	t_delay_int , err := strconv.Atoi(t_delay)
+	t_delay_int , err := strconv.ParseInt(t_delay_str, 10, 64)
+	t_delay := time.Unix(t_delay_int, 0)
 	if err != nil {
 		return Task{} , err
 	}
 
-	task := Task{taskid: t_id, content: t_url, exec_time: time.Now().Add(time.Duration(t_delay_int) * time.Second)}
+	task := Task{taskid: t_id, content: t_url, exec_time: t_delay}
 	return task , nil
 }
 

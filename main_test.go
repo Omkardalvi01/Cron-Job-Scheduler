@@ -34,7 +34,7 @@ func Test_redis_integration_test(t *testing.T){
 		t.Errorf("Error at set task hset: %v", err)
 	}
 
-	err = set_sorted_set(client, str , 4)
+	err = set_sorted_set(client, str , delay)
 	if err != nil {
 		t.Errorf("Error at set sorted set: %v", err)
 	}

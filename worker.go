@@ -1,11 +1,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
-
 	"time"
-
 	"github.com/redis/go-redis/v9"
 )
 
@@ -59,12 +56,12 @@ func (wp workerpool) Start() {
 	}
 }
 
-func (wp workerpool)  Submit(ctx context.Context , new_entry chan struct{}, r *redis.Client){
+func (wp workerpool)  Submit(cancel chan struct{} , new_entry chan struct{}, r *redis.Client){
 
 	t, err := get_top(r)
 	if err == redis.Nil{
 		<-new_entry
-		go wp.Submit(ctx , new_entry, r)
+		go wp.Submit(cancel , new_entry, r)
 		return 
 	}
 	if err != nil{
@@ -75,7 +72,7 @@ func (wp workerpool)  Submit(ctx context.Context , new_entry chan struct{}, r *r
 	fmt.Println("Duration until execution:", time.Until(t.exec_time))
 	for {
 		select{
-		case <-ctx.Done():
+		case <-cancel:
 			fmt.Println("Context Cancelled")
 			return
 		default:
@@ -87,7 +84,7 @@ func (wp workerpool)  Submit(ctx context.Context , new_entry chan struct{}, r *r
 					fmt.Println("Error at remove from db: ", err)
 				}
 
-				go wp.Submit(ctx , new_entry, r)
+				go wp.Submit(cancel , new_entry, r)
 				return
 			}
 			
@@ -96,8 +93,7 @@ func (wp workerpool)  Submit(ctx context.Context , new_entry chan struct{}, r *r
 	
 }
 
-func (wp workerpool) Cancel_Submit(cancel context.CancelFunc, r *redis.Client ,delay int,
-	ctx context.Context, new_entry chan struct{}){
+func (wp workerpool) Cancel_Submit(cancel chan struct{} ,r *redis.Client ,delay int, new_entry chan struct{}){
 	t, err := get_top(r)
 	if err != nil {
 		fmt.Print("Eror: ",err)
@@ -106,8 +102,8 @@ func (wp workerpool) Cancel_Submit(cancel context.CancelFunc, r *redis.Client ,d
 	new_exec_time := time.Now().Add(time.Duration(delay) * time.Second)
 	if top_delay.After(new_exec_time)  {
 		fmt.Println("Task switched")
-		cancel()
-		go wp.Submit(ctx, new_entry, r)
+		cancel <- struct{}{}
+		go wp.Submit(cancel, new_entry, r)
 	}
 
 }
